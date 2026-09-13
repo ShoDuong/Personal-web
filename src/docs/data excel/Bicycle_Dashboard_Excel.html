@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Sales Executive Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --primary:#FF6635;
+    --primary-grad: linear-gradient(135deg, #FF6635, #FF4D8D);
+    --bg:#F8F9FA;
+    --card:#FFFFFF;
+    --text:#1A1A2E;
+    --text-sub:#6B7280;
+    --blue:#54A0FF;
+    --green:#2ECC71;
+    --yellow:#F59E0B;
+    --purple:#9B5DE5;
+    --gray:#9CA3AF;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body,#app{height:100vh; width:100vw; overflow:hidden;}
+  body{font-family:'Plus Jakarta Sans', sans-serif; background:var(--bg); color:var(--text);}
+  #app{display:flex;}
+
+  /* SIDEBAR */
+  .sidebar{
+    width:220px; flex-shrink:0; background:#fff; box-shadow: 2px 0 12px rgba(0,0,0,0.05);
+    display:flex; flex-direction:column; padding:22px 14px; z-index:10;
+  }
+  .sidebar .logo{
+    display:flex; align-items:center; gap:8px; padding:0 8px 20px 8px; margin-bottom:10px;
+    border-bottom:1px solid #F0F0F3;
+  }
+  .sidebar .logo .dot{width:26px; height:26px; border-radius:8px; background:var(--primary-grad);}
+  .sidebar .logo span{font-weight:800; font-size:14px;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:10px;
+    color:var(--text-sub); font-weight:600; font-size:13px; cursor:pointer; margin-bottom:6px;
+    transition: all .15s ease;
+  }
+  .nav-item .ic{font-size:16px;}
+  .nav-item:hover{ background:#FFF5F2; color:var(--primary); }
+  .nav-item.active{
+    background:var(--primary-grad); color:#fff;
+    box-shadow:0 6px 16px rgba(255,102,53,0.35);
+  }
+
+  /* CONTENT */
+  .content{flex:1; overflow:hidden; padding:16px 18px; display:flex; flex-direction:column; min-width:0;}
+  .page{display:none; height:100%; flex-direction:column; min-height:0;}
+  .page.active{display:flex;}
+
+  /* TOPBAR */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; flex-shrink:0; margin-bottom:12px; gap:12px; flex-wrap:wrap;
+  }
+  .topbar h1{font-size:18px; font-weight:800;}
+  .topbar h1 span{display:block; font-size:11.5px; font-weight:500; color:var(--text-sub); margin-top:2px;}
+  .filters{display:flex; gap:8px; align-items:center;}
+  .filters select{
+    border:1px solid #E5E7EB; background:#fff; border-radius:8px; padding:7px 10px; font-size:12.5px;
+    font-family:inherit; color:var(--text); font-weight:600; cursor:pointer;
+  }
+  .btn-upload{
+    background:var(--primary-grad); color:#fff; border:none; padding:9px 16px; border-radius:9px;
+    font-weight:700; font-size:12.5px; cursor:pointer; box-shadow:0 6px 14px rgba(255,102,53,.3);
+    display:flex; align-items:center; gap:6px;
+  }
+
+  /* KPI ROW */
+  .kpi-row{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; flex-shrink:0; margin-bottom:8px;}
+  .kpi-card{
+    background:var(--card); border-radius:14px; padding:13px 14px; position:relative; overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,0.04); border:1px solid #F1F1F4;
+  }
+  .kpi-card .icon{
+    position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%;
+    background:var(--primary-grad); display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff;
+  }
+  .kpi-card .label{font-size:10.5px; color:var(--text-sub); font-weight:600; margin-bottom:6px;}
+  .kpi-card .value{font-size:20px; font-weight:800; letter-spacing:-0.3px;}
+  .kpi-card .caption{font-size:10.5px; color:var(--gray); margin-top:4px; font-weight:600;}
+
+  /* BODY LAYOUT */
+  .analytics-body{flex:1; display:flex; flex-direction:column; gap:7px; min-height:0; overflow:hidden;}
+  .chart-row2{flex:52; display:grid; grid-template-columns:1.1fr 1fr 0.95fr; gap:7px; min-height:0;}
+  .chart-row3{flex:48; display:grid; grid-template-columns:1fr 1.05fr; gap:7px; min-height:0;}
+
+  .panel{
+    background:var(--card); border-radius:14px; padding:12px 13px; display:flex; flex-direction:column;
+    min-height:0; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.04); border:1px solid #F1F1F4;
+  }
+  .panel h3{font-size:12.5px; font-weight:800; margin-bottom:6px; flex-shrink:0; display:flex; justify-content:space-between; align-items:center;}
+  .panel h3 .legend{display:flex; gap:10px; font-size:10px; font-weight:600; color:var(--text-sub);}
+  .legend .li{display:flex; align-items:center; gap:4px;}
+  .legend .sw{width:9px; height:9px; border-radius:3px; display:inline-block;}
+  .legend .sw.line{width:12px; height:2px; border-radius:0;}
+
+  .chart-wrap{position:relative; flex:1; min-height:0;}
+  .chart-wrap canvas{position:absolute; top:0; left:0; width:100%!important; height:100%!important;}
+
+  /* HEATMAP */
+  .hm-outer{flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden; gap:1.5px;}
+  .hm-row{flex:1; display:flex; align-items:stretch; gap:1.5px; min-height:0;}
+  .hm-label{width:34px; flex-shrink:0; font-size:9px; font-weight:700; color:var(--text-sub); display:flex; align-items:center;}
+  .hm-cell{flex:1; border-radius:3px; min-width:0;}
+  .hm-cols{display:flex; gap:1.5px; padding-left:36px; flex-shrink:0; margin-top:2px;}
+  .hm-cols span{flex:1; text-align:center; font-size:8px; color:var(--gray); font-weight:700;}
+
+  /* TABLE */
+  .date-table-wrap{flex:1; overflow-y:auto;}
+  table{width:100%; border-collapse:collapse; font-size:11px;}
+  thead th{
+    position:sticky; top:0; background:#fff; text-align:right; padding:6px 7px; color:var(--text-sub);
+    font-weight:700; border-bottom:2px solid #F0F0F3; z-index:1;
+  }
+  thead th:first-child, tbody td:first-child{text-align:left;}
+  tbody td{padding:5px 7px; text-align:right; border-bottom:1px solid #F5F5F7; font-weight:600;}
+  tbody tr:hover td{background:#FAFAFC;}
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar{width:7px; height:7px;}
+  ::-webkit-scrollbar-thumb{background:#E5E7EB; border-radius:10px;}
+  ::-webkit-scrollbar-thumb:hover{background:#D1D5DB;}
+
+  /* SEARCH / TABLE PAGES */
+  .search-bar{
+    display:flex; align-items:center; gap:8px; background:#fff; border-radius:10px; padding:10px 14px;
+    margin-bottom:12px; flex-shrink:0; border:1px solid #F1F1F4; box-shadow:0 2px 10px rgba(0,0,0,0.04);
+  }
+  .search-bar input{border:none; outline:none; font-family:inherit; font-size:13px; flex:1; font-weight:600;}
+  .table-panel{flex:1; background:#fff; border-radius:14px; padding:12px 14px; overflow:hidden; display:flex; flex-direction:column; border:1px solid #F1F1F4; box-shadow:0 2px 10px rgba(0,0,0,0.04);}
+  .table-scroll{flex:1; overflow-y:auto;}
+
+  /* REGIONS PAGE */
+  .kpi-row2{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; flex-shrink:0; margin-bottom:12px;}
+
+  /* OVERLAY */
+  #overlay{
+    position:fixed; inset:0; z-index:100; background:rgba(248,249,250,0.97);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center;
+    backdrop-filter:blur(3px);
+  }
+  #overlay.hidden{display:none;}
+  #overlay .upicon{
+    width:70px; height:70px; border-radius:20px; background:var(--primary-grad); display:flex;
+    align-items:center; justify-content:center; font-size:30px; color:#fff; margin-bottom:18px;
+    box-shadow:0 10px 24px rgba(255,102,53,.35);
+  }
+  #overlay h2{font-size:19px; font-weight:800; margin-bottom:6px;}
+  #overlay p{font-size:12.5px; color:var(--text-sub); margin-bottom:18px; max-width:360px;}
+  #overlay .btn-upload{padding:11px 22px; font-size:13px;}
+  #fileInputMain, #fileInputTop{display:none;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="sidebar">
+    <div class="logo"><div class="dot"></div><span>Global Sales</span></div>
+    <div class="nav-item active" data-page="page-analytics"><span class="ic">📊</span> Sales Analytics</div>
+    <div class="nav-item" data-page="page-orders"><span class="ic">📜</span> Orders & Customers</div>
+    <div class="nav-item" data-page="page-regions"><span class="ic">🌍</span> Regions & Products</div>
+  </div>
+
+  <div class="content">
+    <!-- PAGE 1: SALES ANALYTICS -->
+    <section id="page-analytics" class="page active">
+      <div class="topbar">
+        <h1>Global Sales Executive Dashboard<span>Theo dõi hiệu quả kinh doanh toàn cầu 2020–2021</span></h1>
+        <div class="filters">
+          <select id="fContinent"><option value="all">Tất cả châu lục</option></select>
+          <select id="fSegment"><option value="all">Tất cả phân khúc</option></select>
+          <select id="fYear"><option value="all">Tất cả năm</option></select>
+          <button class="btn-upload" onclick="document.getElementById('fileInputTop').click()">📂 Upload Excel Files</button>
+          <input type="file" id="fileInputTop" multiple accept=".xlsx,.xls">
+        </div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="icon">💵</div><div class="label">GROSS SALES</div><div class="value" id="kpiGross">$0</div><div class="caption">Tổng doanh thu gốc</div></div>
+        <div class="kpi-card"><div class="icon">🏷️</div><div class="label">DISCOUNTS</div><div class="value" id="kpiDiscount">$0</div><div class="caption">Tổng chiết khấu</div></div>
+        <div class="kpi-card"><div class="icon">💰</div><div class="label">NET SALES</div><div class="value" id="kpiNet">$0</div><div class="caption">Doanh thu thuần</div></div>
+        <div class="kpi-card"><div class="icon">📈</div><div class="label">PROFIT</div><div class="value" id="kpiProfit">$0</div><div class="caption">Tổng lợi nhuận</div></div>
+        <div class="kpi-card"><div class="icon">📦</div><div class="label">UNITS SOLD</div><div class="value" id="kpiUnits">0</div><div class="caption">Tổng số lượng bán</div></div>
+      </div>
+
+      <div class="analytics-body">
+        <div class="chart-row2">
+          <div class="panel">
+            <h3>Sales & Profit Trend
+              <span class="legend"><span class="li"><span class="sw line" style="background:#FF6635"></span>Net Sales</span><span class="li"><span class="sw line" style="background:#2ECC71; border-bottom:2px dashed #2ECC71"></span>Profit</span></span>
+            </h3>
+            <div class="chart-wrap"><canvas id="chartTrend"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>Sales Heatmap by Day & Month</h3>
+            <div class="hm-outer" id="heatmap"></div>
+            <div class="hm-cols" id="heatmapCols"></div>
+          </div>
+          <div class="panel">
+            <h3>Sales Conversion Funnel</h3>
+            <div class="chart-wrap"><canvas id="chartFunnel"></canvas></div>
+          </div>
+        </div>
+
+        <div class="chart-row3">
+          <div class="panel">
+            <h3>Revenue vs Profit Margin by Segment
+              <span class="legend"><span class="li"><span class="sw" style="background:#FF6635"></span>Net Sales</span><span class="li"><span class="sw" style="background:#F59E0B"></span>Margin %</span></span>
+            </h3>
+            <div class="chart-wrap"><canvas id="chartSegment"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>Date × Performance KPI Matrix</h3>
+            <div class="date-table-wrap">
+              <table>
+                <thead><tr><th>Date</th><th>Orders</th><th>Net Sales</th><th>Profit</th><th>Units</th><th>Margin %</th></tr></thead>
+                <tbody id="dateMatrixBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 2: ORDERS & CUSTOMERS -->
+    <section id="page-orders" class="page">
+      <div class="topbar"><h1>Orders & Customers<span>Tra cứu chi tiết đơn hàng & khách hàng</span></h1></div>
+      <div class="search-bar">
+        <span>🔍</span>
+        <input type="text" id="txSearch" placeholder="Tìm theo tên khách hàng, sản phẩm, hoặc quốc gia...">
+      </div>
+      <div class="table-panel">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>Order Date</th><th>Customer Name</th><th>Segment</th><th>Product Name</th><th>Country</th><th>Units Sold</th><th>Sale Price ($)</th><th>Net Sales ($)</th><th>Profit ($)</th></tr></thead>
+            <tbody id="txBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: REGIONS & PRODUCTS -->
+    <section id="page-regions" class="page">
+      <div class="topbar"><h1>Regions & Products<span>Hiệu suất theo khu vực & sản phẩm</span></h1></div>
+      <div class="kpi-row2">
+        <div class="kpi-card"><div class="icon">🌐</div><div class="label">TOTAL COUNTRIES</div><div class="value" id="rTotalCountries">0</div><div class="caption">Tổng số quốc gia</div></div>
+        <div class="kpi-card"><div class="icon">🏆</div><div class="label">TOP COUNTRY</div><div class="value" id="rTopCountry">-</div><div class="caption">Quốc gia doanh thu cao nhất</div></div>
+        <div class="kpi-card"><div class="icon">⭐</div><div class="label">TOP PRODUCT</div><div class="value" id="rTopProduct">-</div><div class="caption">Sản phẩm lợi nhuận cao nhất</div></div>
+        <div class="kpi-card"><div class="icon">⚖️</div><div class="label">AVG PROFIT / PRODUCT</div><div class="value" id="rAvgProfit">$0</div><div class="caption">Lợi nhuận TB / sản phẩm</div></div>
+      </div>
+      <div class="table-panel">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Rank</th><th>Product Name</th><th>Units Sold</th><th>Gross Sales ($)</th><th>Discounts ($)</th><th>Net Sales ($)</th><th>Profit ($)</th><th>Margin %</th></tr></thead>
+            <tbody id="productBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="upicon">📤</div>
+  <h2>No Sales Data Loaded</h2>
+  <p>Tải lên 5 file Excel: fact_sale_2020-2021.xlsx, dim_product.xlsx, dim_customer.xlsx, dim_customer_segment.xlsx, dim_region.xlsx (hoặc file đã gộp) để bắt đầu.</p>
+  <button class="btn-upload" onclick="document.getElementById('fileInputMain').click()">📂 Upload Sales Excel Files</button>
+  <input type="file" id="fileInputMain" multiple accept=".xlsx,.xls">
+</div>
+
+<script>
+Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+Chart.defaults.plugins.legend.display = false;
+Chart.defaults.plugins.tooltip.backgroundColor = '#fff';
+Chart.defaults.plugins.tooltip.titleColor = '#1A1A2E';
+Chart.defaults.plugins.tooltip.bodyColor = '#1A1A2E';
+Chart.defaults.plugins.tooltip.borderColor = 'rgba(0,0,0,0.07)';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.cornerRadius = 10;
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.boxPadding = 4;
+Chart.defaults.plugins.tooltip.titleFont = { weight: '700', size: 12 };
+Chart.defaults.plugins.tooltip.bodyFont = { size: 11.5 };
+
+// ---------- STATE ----------
+let rawOrders = [], products = [], customers = [], segments = [], regions = [];
+let joined = [];
+let charts = {};
+
+function fmtMoney(n){
+  n = n || 0;
+  const sign = n < 0 ? '-' : '';
+  n = Math.abs(n);
+  if(n >= 1000000) return sign + '$' + (n/1000000).toFixed(2) + 'M';
+  if(n >= 1000) return sign + '$' + (n/1000).toFixed(1) + 'K';
+  return sign + '$' + n.toFixed(0);
+}
+function fmtNum(n){ n = n||0; return n.toLocaleString('en-US'); }
+function excelDateToJS(v){
+  if(v instanceof Date) return v;
+  if(typeof v === 'number') return new Date(Math.round((v - 25569) * 86400 * 1000));
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+function median(arr){
+  const a = [...arr].sort((x,y)=>x-y);
+  const m = Math.floor(a.length/2);
+  return a.length % 2 !== 0 ? a[m] : (a[m-1]+a[m])/2;
+}
+function mean(arr){ return arr.reduce((a,b)=>a+b,0) / (arr.length||1); }
+function percentile(arr, p){
+  const a = [...arr].sort((x,y)=>x-y);
+  if(a.length===0) return 0;
+  const idx = (p/100) * (a.length-1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if(lo===hi) return a[lo];
+  return a[lo] + (a[hi]-a[lo]) * (idx-lo);
+}
+
+// ---------- FILE HANDLING (AUTO-LOAD + MANUAL FALLBACK) ----------
+const autoLoadFiles = [
+  'fact_sale_2020-2021.xlsx',
+  'dim_product.xlsx',
+  'dim_customer.xlsx',
+  'dim_customer_segment.xlsx',
+  'dim_region.xlsx'
+];
+
+async function fetchAndLoadData() {
+  const overlay = document.getElementById('overlay');
+  overlay.querySelector('h2').textContent = "Đang tải dữ liệu tự động...";
+  overlay.querySelector('p').textContent = "Hệ thống đang đọc 5 file Excel, vui lòng đợi giây lát...";
+  overlay.querySelector('.btn-upload').style.display = 'none';
+
+  try {
+    for (const fileName of autoLoadFiles) {
+      const response = await fetch(fileName);
+      if (!response.ok) throw new Error(`Không tìm thấy ${fileName}`);
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(arrayBuffer), {type:'array', cellDates:false});
+      
+      wb.SheetNames.forEach(sn => {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {defval:null});
+        if(rows.length === 0) return;
+        const keys = Object.keys(rows[0]);
+        
+        if(keys.includes('Order_Date') && keys.includes('Units_Sold')) {
+          rawOrders = rawOrders.concat(rows);
+        } else if(keys.includes('Product_ID') && keys.includes('Product_Name')) {
+          products = products.concat(rows);
+        } else if(keys.includes('Customer_ID') && keys.includes('Customer_Name')) {
+          customers = customers.concat(rows);
+        } else if(keys.includes('Customer_Segment_ID') && keys.includes('Customer_Segment_Name')) {
+          segments = segments.concat(rows);
+        } else if(keys.includes('Region_ID') && keys.includes('Country')) {
+          regions = regions.concat(rows);
+        }
+      });
+    }
+    afterAllFilesLoaded(); 
+  } catch (error) {
+    console.error("Auto-load failed:", error);
+    overlay.querySelector('h2').textContent = "Không thể tải tự động";
+    overlay.querySelector('p').textContent = "Vui lòng mở bằng Live Server hoặc bấm nút dưới đây để upload thủ công 5 file Excel.";
+    overlay.querySelector('.btn-upload').style.display = 'flex';
+  }
+}
+
+// Chạy tự động khi tải trang
+window.addEventListener('DOMContentLoaded', fetchAndLoadData);
+
+function handleFiles(fileList){
+  const files = Array.from(fileList);
+  let pending = files.length;
+  if(pending===0) return;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      try{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:false});
+        wb.SheetNames.forEach(sn=>{
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {defval:null});
+          if(rows.length===0) return;
+          const keys = Object.keys(rows[0]);
+          if(keys.includes('Order_Date') && keys.includes('Units_Sold') && keys.includes('Sale_Price')){
+            rawOrders = rawOrders.concat(rows);
+          } else if(keys.includes('Product_ID') && keys.includes('Product_Name')){
+            products = products.concat(rows);
+          } else if(keys.includes('Customer_ID') && keys.includes('Customer_Name')){
+            customers = customers.concat(rows);
+          } else if(keys.includes('Customer_Segment_ID') && keys.includes('Customer_Segment_Name')){
+            segments = segments.concat(rows);
+          } else if(keys.includes('Region_ID') && keys.includes('Country')){
+            regions = regions.concat(rows);
+          }
+        });
+      }catch(err){ console.error('Parse error', file.name, err); }
+      pending--;
+      if(pending===0) afterAllFilesLoaded();
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function afterAllFilesLoaded(){
+  if(rawOrders.length===0) return;
+  const prodMap = {}; products.forEach(p=> prodMap[p.Product_ID] = p);
+  const custMap = {}; customers.forEach(c=> custMap[c.Customer_ID] = c);
+  const segMap = {}; segments.forEach(s=> segMap[s.Customer_Segment_ID] = s);
+  const regMap = {}; regions.forEach(r=> regMap[r.Region_ID] = r);
+
+  joined = rawOrders.map(o=>{
+    const pr = prodMap[o.Product_ID] || {};
+    const cu = custMap[o.Customer_ID] || {};
+    const sg = segMap[o.Customer_Segment_ID] || {};
+    const rg = regMap[o.Region_ID] || {};
+    const units = Number(o.Units_Sold)||0;
+    const price = Number(o.Sale_Price)||0;
+    const discRate = Number(o.Discount_Rate)||0;
+    const mfgPrice = Number(pr.Manufacturing_Price)||0;
+    const gross = units * price;
+    const discount = gross * discRate;
+    const net = gross - discount;
+    const cost = units * mfgPrice;
+    const profit = net - cost;
+    return {
+      Date: excelDateToJS(o.Order_Date),
+      Product_ID: o.Product_ID,
+      Product_Name: pr.Product_Name || 'Unknown',
+      Manufacturing_Price: mfgPrice,
+      Customer_Name: cu.Customer_Name || 'Unknown',
+      Segment_Name: sg.Customer_Segment_Name || 'Unknown',
+      Country: rg.Country || 'Unknown',
+      Continent: rg.Continent || 'Unknown',
+      Units_Sold: units,
+      Sale_Price: price,
+      Discount_Rate: discRate,
+      Gross_Sales: gross,
+      Discounts: discount,
+      Net_Sales: net,
+      Profit: profit
+    };
+  }).filter(d=>d.Date);
+
+  document.getElementById('overlay').classList.add('hidden');
+  populateFilters();
+  renderAll();
+}
+
+document.getElementById('fileInputMain').addEventListener('change', e=> handleFiles(e.target.files));
+document.getElementById('fileInputTop').addEventListener('change', e=> handleFiles(e.target.files));
+
+// ---------- FILTERS ----------
+function populateFilters(){
+  const contSel = document.getElementById('fContinent');
+  const segSel = document.getElementById('fSegment');
+  const yearSel = document.getElementById('fYear');
+  const contsU = [...new Set(joined.map(d=>d.Continent))].sort();
+  const segsU = [...new Set(joined.map(d=>d.Segment_Name))].sort();
+  const yearsU = [...new Set(joined.map(d=>d.Date.getFullYear()))].sort();
+  contSel.innerHTML = '<option value="all">Tất cả châu lục</option>' + contsU.map(c=>`<option value="${c}">${c}</option>`).join('');
+  segSel.innerHTML = '<option value="all">Tất cả phân khúc</option>' + segsU.map(c=>`<option value="${c}">${c}</option>`).join('');
+  yearSel.innerHTML = '<option value="all">Tất cả năm</option>' + yearsU.map(y=>`<option value="${y}">${y}</option>`).join('');
+  [contSel, segSel, yearSel].forEach(s=> s.addEventListener('change', renderAll));
+}
+
+function getFiltered(){
+  const cont = document.getElementById('fContinent').value;
+  const seg = document.getElementById('fSegment').value;
+  const year = document.getElementById('fYear').value;
+  return joined.filter(d=>
+    (cont==='all' || d.Continent===cont) &&
+    (seg==='all' || d.Segment_Name===seg) &&
+    (year==='all' || String(d.Date.getFullYear())===year)
+  );
+}
+
+// ---------- MAIN RENDER ----------
+function renderAll(){
+  const f = getFiltered();
+  renderKPIs(f);
+  renderTrend(f);
+  renderHeatmap(f);
+  renderFunnel(f);
+  renderSegmentChart(f);
+  renderDateMatrix(f);
+  renderOrders();
+  renderProducts();
+}
+
+function renderKPIs(f){
+  const gross = f.reduce((s,d)=>s+d.Gross_Sales,0);
+  const discount = f.reduce((s,d)=>s+d.Discounts,0);
+  const net = f.reduce((s,d)=>s+d.Net_Sales,0);
+  const profit = f.reduce((s,d)=>s+d.Profit,0);
+  const units = f.reduce((s,d)=>s+d.Units_Sold,0);
+  document.getElementById('kpiGross').textContent = fmtMoney(gross);
+  document.getElementById('kpiDiscount').textContent = fmtMoney(discount);
+  document.getElementById('kpiNet').textContent = fmtMoney(net);
+  document.getElementById('kpiProfit').textContent = fmtMoney(profit);
+  document.getElementById('kpiUnits').textContent = fmtNum(units);
+}
+
+// ---------- TREND CHART ----------
+function renderTrend(f){
+  const byDate = {};
+  f.forEach(d=>{
+    const key = d.Date.toISOString().slice(0,10);
+    if(!byDate[key]) byDate[key] = {net:0, profit:0};
+    byDate[key].net += d.Net_Sales;
+    byDate[key].profit += d.Profit;
+  });
+  const keys = Object.keys(byDate).sort();
+  const labels = keys.map(k=>{
+    const dt = new Date(k);
+    return dt.toLocaleDateString('en-US', {month:'short', day:'2-digit'});
+  });
+  const netData = keys.map(k=>byDate[k].net);
+  const profData = keys.map(k=>byDate[k].profit);
+
+  const ctx = document.getElementById('chartTrend').getContext('2d');
+  const gradient = ctx.createLinearGradient(0,0,0,220);
+  gradient.addColorStop(0, 'rgba(255,102,53,0.28)');
+  gradient.addColorStop(1, 'rgba(255,102,53,0)');
+
+  if(charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'Net Sales', data:netData, borderColor:'#FF6635', backgroundColor:gradient, fill:true, tension:0.4, pointRadius:0, pointHoverRadius:5, yAxisID:'y', borderWidth:2.5 },
+      { label:'Profit', data:profData, borderColor:'#2ECC71', borderDash:[5,4], backgroundColor:'transparent', fill:false, tension:0.4, pointRadius:0, pointHoverRadius:5, yAxisID:'y1', borderWidth:2 }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#9CA3AF', font:{size:9.5}, maxTicksLimit:8} },
+        y:{ position:'left', grid:{color:'#F3F4F6'}, ticks:{color:'#9CA3AF', font:{size:9.5}, callback:v=>fmtMoney(v)} },
+        y1:{ position:'right', grid:{display:false}, ticks:{color:'#9CA3AF', font:{size:9.5}, callback:v=>fmtMoney(v)} }
+      },
+      plugins:{ tooltip:{ callbacks:{ label:c=> c.dataset.label+': '+fmtMoney(c.parsed.y) } } }
+    }
+  });
+}
+
+// ---------- HEATMAP ----------
+function renderHeatmap(f){
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const grid = Array.from({length:7}, ()=>Array(12).fill(0));
+  f.forEach(d=>{
+    let dow = d.Date.getDay();
+    dow = dow===0 ? 6 : dow-1;
+    const m = d.Date.getMonth();
+    grid[dow][m] += d.Net_Sales;
+  });
+  const max = Math.max(1, ...grid.flat());
+  const el = document.getElementById('heatmap');
+  el.innerHTML = '';
+  days.forEach((day, r)=>{
+    const row = document.createElement('div'); row.className='hm-row';
+    const lbl = document.createElement('div'); lbl.className='hm-label'; lbl.textContent = day.slice(0,3);
+    row.appendChild(lbl);
+    months.forEach((m,c)=>{
+      const ratio = grid[r][c]/max;
+      const cell = document.createElement('div'); cell.className='hm-cell';
+      cell.style.background = ratio < 0.05 ? '#F1F3F5' : `rgba(255,102,53,${(0.12+ratio*0.88).toFixed(2)})`;
+      cell.title = `${day} / ${m}: ${fmtMoney(grid[r][c])}`;
+      row.appendChild(cell);
+    });
+    el.appendChild(row);
+  });
+  document.getElementById('heatmapCols').innerHTML = months.map(m=>`<span>${m}</span>`).join('');
+}
+
+// ---------- FUNNEL ----------
+const stripePlugin = {
+  id:'stripePlugin',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    const meta = chart.getDatasetMeta(0);
+    meta.data.forEach((bar, i)=>{
+      if(i===1) return; 
+      const {x, y, base, width} = bar;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x-width/2, y, width, base-y);
+      ctx.clip();
+      ctx.strokeStyle='rgba(255,255,255,0.35)';
+      ctx.lineWidth=3;
+      for(let off=-40; off< width+40; off+=8){
+        ctx.beginPath();
+        ctx.moveTo(x-width/2+off, base);
+        ctx.lineTo(x-width/2+off+40, base-40);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+  }
+};
+const funnelLabelPlugin = {
+  id:'funnelLabelPlugin',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    const meta = chart.getDatasetMeta(0);
+    const vals = chart.data.datasets[0].data;
+    meta.data.forEach((bar,i)=>{
+      ctx.save();
+      ctx.strokeStyle = '#1A1A2E'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(bar.x-bar.width/2+2, bar.y-10); ctx.lineTo(bar.x+bar.width/2-2, bar.y-10); ctx.stroke();
+      ctx.fillStyle='#1A1A2E'; ctx.font='700 12px Plus Jakarta Sans'; ctx.textAlign='center';
+      ctx.fillText(fmtNum(vals[i]), bar.x, bar.y-14);
+      ctx.restore();
+    });
+  }
+};
+
+function renderFunnel(f){
+  const rawUnitsMedian = median(rawOrders.map(o=>Number(o.Units_Sold)||0));
+  const rawPriceMean = mean(rawOrders.map(o=>Number(o.Sale_Price)||0));
+
+  const s1 = f;
+  const s2 = s1.filter(d=>d.Units_Sold >= rawUnitsMedian);
+  const s3 = s2.filter(d=>d.Discount_Rate <= 0.10);
+  const s4 = s3.filter(d=>d.Profit > 0);
+  const s5 = s4.filter(d=>d.Sale_Price >= rawPriceMean);
+  const stages = [
+    {name:'All Orders', count:s1.length},
+    {name:'High Volume', count:s2.length},
+    {name:'Low Discount', count:s3.length},
+    {name:'Profitable', count:s4.length},
+    {name:'Premium Orders', count:s5.length}
+  ];
+  const total = stages[0].count || 1;
+
+  const ctx = document.getElementById('chartFunnel').getContext('2d');
+  const colors = ['#BCE9CE','#2ECC71','#8DDCB2','#6BD39D','#4ACB89'];
+  if(charts.funnel) charts.funnel.destroy();
+  charts.funnel = new Chart(ctx, {
+    type:'bar',
+    data:{ labels: stages.map(s=>s.name), datasets:[{ data: stages.map(s=>s.count), backgroundColor: colors, borderRadius:6, barPercentage:0.65 }]},
+    options:{
+      responsive:true, maintainAspectRatio:false, layout:{padding:{top:24, bottom:4}},
+      scales:{ y:{display:false}, x:{ grid:{display:false}, ticks:{color:'#6B7280', font:{size:9}} } },
+      plugins:{ tooltip:{ callbacks:{ label:c=> `${fmtNum(c.parsed.y)}  (${(c.parsed.y/total*100).toFixed(1)}%)` } } }
+    },
+    plugins:[stripePlugin, funnelLabelPlugin]
+  });
+}
+
+// ---------- SEGMENT CHART ----------
+function renderSegmentChart(f){
+  const bySeg = {};
+  f.forEach(d=>{
+    if(!bySeg[d.Segment_Name]) bySeg[d.Segment_Name] = {net:0, profit:0};
+    bySeg[d.Segment_Name].net += d.Net_Sales;
+    bySeg[d.Segment_Name].profit += d.Profit;
+  });
+  const labels = Object.keys(bySeg);
+  const netData = labels.map(l=>bySeg[l].net);
+  const marginData = labels.map(l=> bySeg[l].net ? (bySeg[l].profit/bySeg[l].net*100) : 0);
+
+  const ctx = document.getElementById('chartSegment').getContext('2d');
+  if(charts.seg) charts.seg.destroy();
+  charts.seg = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Net Sales', data:netData, backgroundColor:'#FF6635', borderRadius:5, yAxisID:'y' },
+      { label:'Profit Margin %', data:marginData, backgroundColor:'#F59E0B', borderRadius:5, yAxisID:'y1' }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#6B7280', font:{size:9.5}} },
+        y:{ position:'left', grid:{color:'#F3F4F6'}, ticks:{color:'#9CA3AF', font:{size:9}, callback:v=>fmtMoney(v)} },
+        y1:{ position:'right', grid:{display:false}, ticks:{color:'#9CA3AF', font:{size:9}, callback:v=>v+'%'} }
+      },
+      plugins:{ tooltip:{ callbacks:{ label:c=> c.dataset.label.includes('Margin') ? c.dataset.label+': '+c.parsed.y.toFixed(1)+'%' : c.dataset.label+': '+fmtMoney(c.parsed.y) } } }
+    }
+  });
+}
+
+// ---------- DATE MATRIX ----------
+function renderDateMatrix(f){
+  const byDate = {};
+  f.forEach(d=>{
+    const key = d.Date.toISOString().slice(0,10);
+    if(!byDate[key]) byDate[key] = {orders:0, net:0, profit:0, units:0};
+    byDate[key].orders += 1;
+    byDate[key].net += d.Net_Sales;
+    byDate[key].profit += d.Profit;
+    byDate[key].units += d.Units_Sold;
+  });
+  const keys = Object.keys(byDate).sort();
+  const rows = keys.map(k=>{
+    const v = byDate[k];
+    return { date:k, orders:v.orders, net:v.net, profit:v.profit, units:v.units, margin: v.net ? v.profit/v.net*100 : 0 };
+  });
+  const cols = ['orders','net','profit','units','margin'];
+  const pcts = {};
+  cols.forEach(c=>{
+    const vals = rows.map(r=>r[c]);
+    pcts[c] = { p25: percentile(vals,25), p75: percentile(vals,75) };
+  });
+  function cellStyle(col, val){
+    if(val >= pcts[col].p75) return 'background:#D1FAE5;color:#065F46;border-radius:5px;';
+    if(val <= pcts[col].p25) return 'background:#FEE2E2;color:#991B1B;border-radius:5px;';
+    return '';
+  }
+  const tbody = document.getElementById('dateMatrixBody');
+  tbody.innerHTML = rows.map(r=>{
+    const dt = new Date(r.date);
+    const label = dt.toLocaleDateString('en-US', {month:'short', day:'2-digit'});
+    return `<tr>
+      <td style="text-align:left; font-weight:700;">${label}</td>
+      <td style="${cellStyle('orders',r.orders)}">${fmtNum(r.orders)}</td>
+      <td style="${cellStyle('net',r.net)}">${fmtMoney(r.net)}</td>
+      <td style="${cellStyle('profit',r.profit)}">${fmtMoney(r.profit)}</td>
+      <td style="${cellStyle('units',r.units)}">${fmtNum(r.units)}</td>
+      <td style="${cellStyle('margin',r.margin)}">${r.margin.toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------- ORDERS & CUSTOMERS PAGE ----------
+function renderOrders(){
+  const term = (document.getElementById('txSearch').value || '').toLowerCase().trim();
+  let list = joined;
+  if(term){
+    list = joined.filter(d=>
+      d.Customer_Name.toLowerCase().includes(term) ||
+      d.Product_Name.toLowerCase().includes(term) ||
+      d.Country.toLowerCase().includes(term)
+    );
+  }
+  list = list.slice(0,500);
+  const tbody = document.getElementById('txBody');
+  tbody.innerHTML = list.map((d,i)=>`
+    <tr>
+      <td style="text-align:left;">${i+1}</td>
+      <td style="text-align:left;">${d.Date.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'2-digit'})}</td>
+      <td style="text-align:left; font-weight:700;">${d.Customer_Name}</td>
+      <td style="text-align:left;">${d.Segment_Name}</td>
+      <td style="text-align:left;">${d.Product_Name}</td>
+      <td style="text-align:left;">${d.Country}</td>
+      <td>${fmtNum(d.Units_Sold)}</td>
+      <td>${d.Sale_Price.toFixed(2)}</td>
+      <td>${fmtMoney(d.Net_Sales)}</td>
+      <td>${fmtMoney(d.Profit)}</td>
+    </tr>`).join('');
+}
+document.getElementById('txSearch').addEventListener('input', renderOrders);
+
+// ---------- REGIONS & PRODUCTS PAGE ----------
+function renderProducts(){
+  const byProduct = {};
+  joined.forEach(d=>{
+    if(!byProduct[d.Product_Name]) byProduct[d.Product_Name] = { units:0, gross:0, discount:0, net:0, profit:0 };
+    const p = byProduct[d.Product_Name];
+    p.units += d.Units_Sold; p.gross += d.Gross_Sales; p.discount += d.Discounts; p.net += d.Net_Sales; p.profit += d.Profit;
+  });
+  const rows = Object.keys(byProduct).map(name=>{
+    const p = byProduct[name];
+    return { name, units:p.units, gross:p.gross, discount:p.discount, net:p.net, profit:p.profit, margin: p.net ? p.profit/p.net*100 : 0 };
+  }).sort((a,b)=> b.profit - a.profit);
+
+  const byCountry = {};
+  joined.forEach(d=>{ byCountry[d.Country] = (byCountry[d.Country]||0) + d.Net_Sales; });
+  const topCountry = Object.entries(byCountry).sort((a,b)=>b[1]-a[1])[0];
+  const topProduct = rows[0];
+  const avgProfit = rows.length ? rows.reduce((s,r)=>s+r.profit,0)/rows.length : 0;
+  const totalCountries = Object.keys(byCountry).length;
+
+  document.getElementById('rTotalCountries').textContent = totalCountries;
+  document.getElementById('rTopCountry').textContent = topCountry ? topCountry[0] : '-';
+  document.getElementById('rTopProduct').textContent = topProduct ? topProduct.name : '-';
+  document.getElementById('rAvgProfit').textContent = fmtMoney(avgProfit);
+
+  const medals = ['🥇','🥈','🥉'];
+  const tbody = document.getElementById('productBody');
+  tbody.innerHTML = rows.map((r,i)=>`
+    <tr>
+      <td style="text-align:left; font-weight:700;">${i<3 ? medals[i]+' ' : ''}${i+1}</td>
+      <td style="text-align:left; font-weight:700;">${r.name}</td>
+      <td>${fmtNum(r.units)}</td>
+      <td>${fmtMoney(r.gross)}</td>
+      <td>${fmtMoney(r.discount)}</td>
+      <td>${fmtMoney(r.net)}</td>
+      <td>${fmtMoney(r.profit)}</td>
+      <td>${r.margin.toFixed(1)}%</td>
+    </tr>`).join('');
+}
+
+// ---------- NAVIGATION ----------
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById(item.dataset.page).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
