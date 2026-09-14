@@ -33,7 +33,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { HERO_VIDEO_CONFIG } from "@/config/heroVideo";
 import resumeDocument from "../resume/Resume.pdf?url";
 import voltexDocument from "../docs/Voltex Electronics Retail (DA Project).pdf?url";
 import supplyChainReport from "../docs/MAD_Duong-Thanh-Hieu_supplychain.pdf?url";
@@ -247,110 +246,10 @@ function DotMatrix() {
   return <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0" />;
 }
 
-function HeroVideo() {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    const video = videoRef.current;
-    if (!wrapper || !video) return;
-
-    // Load the whole file into memory so seeks never wait on network range requests.
-    let objectUrl: string | null = null;
-    let cancelled = false;
-    fetch(HERO_VIDEO_CONFIG.src)
-      .then((response) => response.blob())
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        video.src = objectUrl;
-      })
-      .catch(() => {
-        if (!cancelled) video.src = HERO_VIDEO_CONFIG.src;
-      });
-
-    if (reducedMotion) {
-      return () => {
-        cancelled = true;
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-      };
-    }
-
-    let target = 0;
-    let displayed = 0;
-    let seeking = false;
-    let visible = true;
-    let frame = 0;
-    let previousX: number | null = null;
-    const frameStep = 1 / 24;
-
-    // Ease the displayed time toward the target each frame and only seek once the previous seek finished.
-    const tick = () => {
-      frame = 0;
-      if (!visible || !video.duration) return;
-      displayed += (target - displayed) * 0.22;
-      if (Math.abs(target - displayed) < 0.002) displayed = target;
-      if (!seeking && Math.abs(video.currentTime - displayed) >= frameStep / 2) {
-        seeking = true;
-        video.currentTime = displayed;
-      }
-      if (displayed !== target || seeking) frame = window.requestAnimationFrame(tick);
-    };
-    const schedule = () => {
-      if (!frame) frame = window.requestAnimationFrame(tick);
-    };
-
-    const onMove = (event: MouseEvent) => {
-      const previous = previousX;
-      previousX = event.clientX;
-      if (!visible || previous === null || !video.duration) return;
-      const delta = event.clientX - previous;
-      target = Math.min(video.duration, Math.max(0, target + (delta / window.innerWidth) * HERO_VIDEO_CONFIG.sensitivity * video.duration));
-      schedule();
-    };
-    const onLoaded = () => {
-      target = displayed = video.duration * 0.18;
-      seeking = true;
-      video.currentTime = displayed;
-    };
-    const onSeeked = () => {
-      seeking = false;
-      schedule();
-    };
-
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry?.isIntersecting ?? false;
-      if (visible) schedule();
-    });
-    observer.observe(wrapper);
-
-    window.addEventListener("mousemove", onMove, { passive: true });
-    video.addEventListener("loadedmetadata", onLoaded);
-    video.addEventListener("seeked", onSeeked);
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(frame);
-      observer.disconnect();
-      window.removeEventListener("mousemove", onMove);
-      video.removeEventListener("loadedmetadata", onLoaded);
-      video.removeEventListener("seeked", onSeeked);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [reducedMotion]);
-
+function HeroBackground() {
   return (
-    <div ref={wrapperRef} className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
-      <video
-        ref={videoRef}
-        muted
-        playsInline
-        preload="auto"
-        poster={HERO_VIDEO_CONFIG.poster}
-        className="h-full w-full object-cover opacity-95"
-        style={{ objectPosition: HERO_VIDEO_CONFIG.objectPosition }}
-      />
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+      <img src="/hero-poster.svg" alt="" className="h-full w-full object-cover opacity-95" />
       <div className="absolute inset-0 bg-hero-mask" />
     </div>
   );
@@ -371,7 +270,7 @@ function Navigation() {
       <nav className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-5 lg:grid-cols-[1fr_auto_1fr]" aria-label="Primary navigation">
         <a href="#top" className="flex min-w-0 items-center gap-3 font-heading text-xl font-semibold text-foreground sm:text-2xl">
           <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-muted grayscale">
-            <img src={HERO_VIDEO_CONFIG.poster} alt="Sho Duong portrait" className="h-full w-full object-cover" />
+            <img src="/hero-poster.svg" alt="Sho Duong portrait" className="h-full w-full object-cover" />
           </span>
           <span className="truncate transition-colors hover:text-champagne">Sho Duong</span>
           <span className="hidden font-mono text-[10px] font-medium text-muted-foreground sm:inline">✳︎ DATA ANALYST</span>
@@ -413,7 +312,7 @@ function Hero() {
   const title = useTypewriter("Data Analyst");
   return (
     <section id="top" className="relative z-10 flex h-screen items-end overflow-hidden px-5 pb-12 pt-28 sm:px-8 md:items-center md:px-10 md:pb-0">
-      <HeroVideo />
+      <HeroBackground />
       <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="relative z-10 flex max-w-3xl flex-col items-start gap-5">
         <span className="rounded-full border border-border bg-background/55 px-3 py-1.5 font-mono text-[10px] text-secondary-foreground backdrop-blur-xl sm:text-xs">git commit -m &quot;init_sho_duong&quot;</span>
         <span className="rounded-md border border-champagne/30 bg-champagne/10 px-4 py-2 font-mono text-xs font-medium text-champagne backdrop-blur-xl sm:text-sm">Welcome to my Portfolio</span>
@@ -518,7 +417,7 @@ function About() {
         <div className="group relative mx-auto w-full max-w-md">
           <div className="absolute inset-8 rounded-full bg-champagne/15 opacity-70 blur-3xl transition-opacity duration-500 group-hover:opacity-100" />
           <div className="portrait-frame relative aspect-[4/5] w-full rotate-[-2deg] overflow-hidden rounded-xl border border-champagne/30 bg-muted shadow-quiet transition-transform duration-500 group-hover:rotate-0 group-hover:scale-[1.03]">
-            <img src={HERO_VIDEO_CONFIG.poster} alt="Sho Duong creative portrait" className="absolute inset-0 z-10 h-full w-full object-cover grayscale transition-[filter] duration-500 group-hover:grayscale-0" />
+            <img src="/hero-poster.svg" alt="Sho Duong creative portrait" className="absolute inset-0 z-10 h-full w-full object-cover grayscale transition-[filter] duration-500 group-hover:grayscale-0" />
             <div className="absolute bottom-4 left-4 right-4 z-20 rounded-xl border border-white/10 bg-black/60 p-4 backdrop-blur-md">
               <p className="font-heading text-xl font-bold text-white">Sho Duong</p>
               <p className="mt-1 font-mono text-xs uppercase tracking-widest text-[#F7E2C0]">Data Analyst · BI Specialist</p>
